@@ -13,5 +13,3 @@ preview_id = "YOUR_KV_NAMESPACE_PREVIEW_ID" # Optional, for `wrangler dev`
 [[r2_buckets]]
 binding = "BUCKET"
 bucket_name = "burn-after-reading-files"
-
-
