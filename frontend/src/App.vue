@@ -270,8 +270,10 @@ function copyLink() {
     </div>
     
     <footer class="mt-12 text-slate-600 text-sm">
-        <a href="#" class="hover:text-slate-400 transition-colors">Privacy</a> • 
-        <a href="#" class="hover:text-slate-400 transition-colors">Terms</a>
+      <div class="flex flex-col gap-2 items-center text-center">
+        <p>Created by Matt Carabine for fun.</p>
+        <p>Please don't store anything <i>actually</i> secret here.</p>
+      </div>
     </footer>
   </div>
 </template>
