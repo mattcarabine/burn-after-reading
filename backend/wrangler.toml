@@ -2,9 +2,10 @@ name = "burn-after-reading-backend"
 main = "src/index.js"
 compatibility_date = "2024-04-05"
 
-# KV Namespace binding will be added here later
+# KV Namespace binding
+# Run `npx wrangler kv:namespace create SECRETS_KV` to get the ID
 [[kv_namespaces]]
 binding = "SECRETS_KV"
-id = "SECRETS_KV_ID" # Placeholder, will be replaced by real ID or ignored in local dev if using --local (but better to have valid syntax)
-preview_id = "SECRETS_KV_PREVIEW_ID"
+id = "YOUR_KV_NAMESPACE_ID" 
+preview_id = "YOUR_KV_NAMESPACE_PREVIEW_ID" # Optional, for `wrangler dev`
 
