@@ -45,25 +45,82 @@ npm run dev
 
 Open the URL shown in the terminal (usually `http://localhost:5173`) to use the application.
 
-## Configuration & Deployment
+## Deployment Guide
 
-### Local Development
-Wrangler simulates the KV store locally in the `.wrangler` directory. No external Cloudflare account configuration is required for `npm run dev`.
+This application is designed to be deployed on Cloudflare. The frontend uses **Cloudflare Pages**, and the backend uses **Cloudflare Workers** with **KV Storage**.
 
-### Production Deployment
+### Prerequisites
 
-To deploy to the internet, you will need a Cloudflare account.
+- A Cloudflare Account
+- A GitHub Repository hosting this code
+- Node.js and npm installed locally (for initial setup)
 
-1. **Backend**:
-   - Log in to Cloudflare: `npx wrangler login`
-   - Create the KV namespace: `npx wrangler kv:namespace create SECRETS_KV`
-   - Update `backend/wrangler.toml` with the `id` returned by the previous command.
-   - Deploy: `npm run deploy`
+### 1. Backend Setup (Cloudflare Workers)
 
-2. **Frontend**:
-   - Configure the API URL in the frontend code to point to your production request worker URL instead of localhost.
-   - Build for production: `npm run build`
-   - Deploy the `dist/` folder to a static host like Cloudflare Pages.
+The backend is configured to deploy automatically via Cloudflare's Git integration.
+
+#### Step 1.1: Create KV Namespace
+The backend needs a Key-Value storage namespace to persist the encrypted secrets.
+
+1. Install Wrangler globally if you haven't: `npm install -g wrangler`
+2. Login to Cloudflare: `wrangler login`
+3. Create the namespace:
+   ```bash
+   wrangler kv namespace create SECRETS_KV
+   ```
+4. Copy the `id` from the output.
+5. Edit `backend/wrangler.toml` and replace `YOUR_KV_NAMESPACE_ID` with the ID you just copied. 
+   *(Note: You can also set this as a variable in the Cloudflare Dashboard if you prefer not to commit it, but `wrangler.toml` IDs are generally not considered sensitive credentials, just identifiers.)*
+
+#### Step 1.2: Create R2 Bucket
+The backend needs an R2 bucket to store file uploads.
+
+1. Create the bucket:
+   ```bash
+   wrangler r2 bucket create burn-after-reading-files
+   ```
+
+#### Step 1.3: Connect to Git via Cloudflare Dashboard
+Instead of using GitHub Actions, we will connect the repository directly via the Cloudflare Dashboard.
+
+1. Log in to the [Cloudflare Dashboard](https://dash.cloudflare.com/) and go to **Workers & Pages**.
+2. Click **Create Application** -> **Connect to Git** and select your repository.
+3. Configure the build settings:
+    - **Root directory**: `/backend`
+    - **Deploy command**: `npx wrangler deploy`
+4. Click **Save and Deploy**.
+
+#### Step 1.4: Verify Bindings
+If your `wrangler.toml` is correctly configured and committed, Cloudflare should automatically detect your bindings.
+
+1. Go to your Worker's **Settings** -> **Bindings**.
+2. Verify that `SECRETS_KV` and `BUCKET` are listed.
+3. If they are missing, you can add them manually:
+    - **KV Namespace**: Variable name `SECRETS_KV` mapped to your `SECRETS_KV` namespace.
+    - **R2 Bucket**: Variable name `BUCKET` mapped to the `burn-after-reading-files` bucket.
+
+### 2. Frontend Setup (Cloudflare Pages)
+
+Cloudflare Pages connects directly to your GitHub repository.
+
+1. Go to the [Cloudflare Dashboard](https://dash.cloudflare.com/) and select **Pages**.
+2. Click **Connect to Git** and select your repository.
+3. Configure the build settings:
+    - **Framework Preset**: `Vite` (or `Vue`)
+    - **Build command**: `npm run build`
+    - **Build output directory**: `dist`
+    - **Root directory**: `frontend` (Important! The app is in a subdirectory)
+4. **Environment Variables**:
+    - Add a variable named `VITE_API_URL`.
+    - Set the value to your deployed Worker URL (e.g., `https://backend.your-name.workers.dev`).
+5. Click **Save and Deploy**.
+
+### 3. Verify Deployment
+
+1. Open your new Pages URL (e.g., `https://frontend.pages.dev`).
+2. Create a secret.
+3. Verify that the link is generated.
+4. Open the link in a private window to verify decryption works.
 
 ## Security Model
 
