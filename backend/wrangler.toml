@@ -1,4 +1,4 @@
-name = "burn-after-reading-backend"
+name = "burn-after-reading"
 main = "src/index.js"
 compatibility_date = "2024-04-05"
 
