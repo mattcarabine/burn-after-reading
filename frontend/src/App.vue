@@ -2,6 +2,8 @@
 import { ref, onMounted, computed } from 'vue'
 import { generateKey, encrypt, decrypt, exportKey, importKey } from './utils/crypto'
 
+import { parseSecretUrl } from './utils/urlParser'
+
 // State
 const mode = ref('create') // 'create', 'created', 'read', 'revealed', 'error'
 const secretText = ref('')
@@ -24,39 +26,20 @@ onMounted(() => {
 
 function checkUrl() {
   const hash = window.location.hash
-  // Expected format: #/secret/<id>#<key_jwk_base64>
-  // Browser might interpret the second # as part of the hash or not?
-  // Usually hash is unique.
-  // Let's use a simpler format: /#/secret/<id>/<key>
-  // Or: /#/secret/<id>?key=<key>
-  // Or standard: fragment after route.
-  // If we use Vue Router, it handles hash routing.
-  // Manually:
-  // window.location.hash might be "#/secret/123...#key..."
   
-  if (hash.startsWith('#/secret/')) {
-    mode.value = 'read'
-    const parts = hash.split('/')
-    // #, secret, <id_with_key_maybe>
-    // If format is #/secret/<id>#<key>
-    // parts[2] is "<id>#<key>"
-    
-    // Let's parse carefully
-    const afterSecret = hash.substring('#/secret/'.length)
-    // We expect "ID#KEY"
-    // ID is usually UUID (36 chars)
-    
-    const keySeparatorIndex = afterSecret.indexOf('#')
-    if (keySeparatorIndex !== -1) {
-        secretId.value = afterSecret.substring(0, keySeparatorIndex)
-        secretKeyStr.value = afterSecret.substring(keySeparatorIndex + 1)
+  // Use our utility to safely parse
+  try {
+    const result = parseSecretUrl(hash)
+    if (result) {
+        mode.value = 'read'
+        secretId.value = result.id
+        secretKeyStr.value = result.key
     } else {
-        // Fallback or error format
-        errorMsg.value = "Invalid link format"
-        mode.value = 'error'
+        mode.value = 'create'
     }
-  } else {
-    mode.value = 'create'
+  } catch (e) {
+      mode.value = 'error'
+      errorMsg.value = e.message
   }
 }
 
