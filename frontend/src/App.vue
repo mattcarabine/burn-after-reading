@@ -88,7 +88,7 @@ async function createLink() {
       body: JSON.stringify({ ciphertext, iv })
     })
     
-    if (!response.ok) throw new Error('Failed to save secret')
+    if (!response.ok) throw new Error('Failed to save secret message')
     
     const data = await response.json()
     const id = data.id
@@ -117,9 +117,9 @@ async function revealSecret() {
     const response = await fetch(`${backendUrl}/api/secrets/${secretId.value}`)
     
     if (response.status === 404) {
-      throw new Error('Secret not found or already burned.')
+      throw new Error('Secret message not found or already burned.')
     }
-    if (!response.ok) throw new Error('Failed to retrieve secret')
+    if (!response.ok) throw new Error('Failed to retrieve secret message')
     
     const data = await response.json()
     
@@ -152,12 +152,12 @@ function copyLink() {
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-4 selection:bg-cyan-500 selection:text-white">
+  <div class="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-4 selection:bg-orange-500 selection:text-white">
     
     <!-- Header -->
     <header class="mb-12 text-center">
-        <h1 class="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-500 tracking-tight mb-2">
-            Incognito Link
+        <h1 class="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-red-600 tracking-tight mb-2">
+            Burn After Reading
         </h1>
         <p class="text-slate-400 text-lg">Encrypt. Share. Burn.</p>
     </header>
@@ -167,7 +167,7 @@ function copyLink() {
         
         <!-- Loading State -->
         <div v-if="isLoading" class="flex flex-col items-center justify-center py-12">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mb-4"></div>
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mb-4"></div>
             <p class="text-slate-400">Processing...</p>
         </div>
 
@@ -186,14 +186,14 @@ function copyLink() {
             <label class="block text-sm font-medium text-slate-400 mb-2 uppercase tracking-wider">Secret Message</label>
             <textarea 
                 v-model="secretText" 
-                placeholder="Write your secret here..." 
-                class="w-full h-48 bg-slate-800/50 border border-slate-700 rounded-xl p-4 text-lg text-slate-200 focus:ring-2 focus:ring-cyan-500 focus:border-transparent outline-none resize-none transition-all placeholder:text-slate-600 mb-6"
+                placeholder="Write your secret message here..." 
+                class="w-full h-48 bg-slate-800/50 border border-slate-700 rounded-xl p-4 text-lg text-slate-200 focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none resize-none transition-all placeholder:text-slate-600 mb-6"
             ></textarea>
             
             <button 
                 @click="createLink" 
                 :disabled="!secretText"
-                class="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-lg rounded-xl shadow-lg shadow-cyan-500/20 transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+                class="w-full py-4 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-lg rounded-xl shadow-lg shadow-orange-500/20 transition-all transform hover:scale-[1.02] active:scale-[0.98]"
             >
                 🔥 Create Self-Destructing Link
             </button>
@@ -211,12 +211,12 @@ function copyLink() {
                 <input 
                     readonly 
                     :value="generatedUrl" 
-                    class="w-full bg-slate-950 border border-slate-800 rounded-xl py-4 pl-4 pr-32 text-slate-300 font-mono text-sm focus:ring-2 focus:ring-cyan-500 outline-none"
+                    class="w-full bg-slate-950 border border-slate-800 rounded-xl py-4 pl-4 pr-32 text-slate-300 font-mono text-sm focus:ring-2 focus:ring-orange-500 outline-none"
                     @click="$event.target.select()"
                 />
                 <button 
                     @click="copyLink"
-                    class="absolute right-2 top-2 bottom-2 bg-slate-800 hover:bg-slate-700 text-cyan-400 px-4 rounded-lg font-medium transition-colors"
+                    class="absolute right-2 top-2 bottom-2 bg-slate-800 hover:bg-slate-700 text-orange-400 px-4 rounded-lg font-medium transition-colors"
                 >
                     Copy
                 </button>
@@ -244,7 +244,7 @@ function copyLink() {
                 @click="revealSecret" 
                 class="w-full py-4 bg-gradient-to-r from-red-500 to-orange-600 hover:from-red-400 hover:to-orange-500 text-white font-bold text-lg rounded-xl shadow-lg shadow-red-500/20 transition-all transform hover:scale-[1.02] active:scale-[0.98]"
             >
-                👀 Reveal Secret
+                👀 Reveal Message
             </button>
         </div>
 
@@ -260,10 +260,10 @@ function copyLink() {
             </div>
             
             <button 
-                @click="reset" 
+                @click="reset"
                 class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-xl transition-colors"
             >
-                Create New Secret
+                Create New Secret Message
             </button>
         </div>
 
