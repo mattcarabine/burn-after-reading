@@ -21,7 +21,6 @@ describe('Worker API', () => {
         ctx = {
             waitUntil: vi.fn(),
         };
-        // Mock crypto.randomUUID
         global.crypto.randomUUID = vi.fn(() => 'test-uuid');
     });
 
@@ -54,17 +53,14 @@ describe('Worker API', () => {
 
             const request = new Request('http://localhost/api/secrets', {
                 method: 'POST',
-                // body: formData // Request constructor doesn't handle FormData automatically in Node env sometimes, but let's try
                 body: formData
             });
 
-            // Mock FormData extraction if needed or rely on Request implementation
-            // In Node/Vitest with standard Request, it works if headers are omitted (auto-set boundary).
 
             const response = await worker.fetch(request, env, ctx);
 
             expect(response.status).toBe(200);
-            expect(env.BUCKET.put).toHaveBeenCalledWith('test-uuid', expect.any(Object)); // Blob
+            expect(env.BUCKET.put).toHaveBeenCalledWith('test-uuid', expect.any(Object));
             expect(env.SECRETS_KV.put).toHaveBeenCalledWith(
                 'test-uuid',
                 JSON.stringify({ iv: 'iv-file', filename: 'test.txt', type: 'file', r2_key: 'test-uuid' }),

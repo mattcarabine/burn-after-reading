@@ -1,6 +1,4 @@
-// Web Crypto API utilities
 
-// Generate a random AES-GCM key
 export async function generateKey() {
     return window.crypto.subtle.generateKey(
         {
@@ -12,7 +10,6 @@ export async function generateKey() {
     );
 }
 
-// Encrypt text or binary
 export async function encrypt(data, key, returnBinary = false) {
     let encodedData;
     if (typeof data === 'string') {
@@ -46,7 +43,6 @@ export async function encrypt(data, key, returnBinary = false) {
     };
 }
 
-// Decrypt text or binary
 export async function decrypt(ciphertext, iv, key, returnBinary = false) {
     let ciphertextBuf, ivBuf;
 
@@ -79,18 +75,11 @@ export async function decrypt(ciphertext, iv, key, returnBinary = false) {
     return decoder.decode(decrypted);
 }
 
-// Export key to JWK (for URL)
 export async function exportKey(key) {
     const exported = await window.crypto.subtle.exportKey("jwk", key);
-    // We only need k component (the key material) for compact URL if we assume alg/ext
-    // But safer to allow full JWK re-import.
-    // To keep URL short, we can just export the raw bytes and base64url encode them?
-    // JWK is standard. Let's start with JWK.
-    // To make it URL safe, we encode the JSON string as base64url.
     return base64UrlEncode(JSON.stringify(exported));
 }
 
-// Import key from JWK string
 export async function importKey(jwkString) {
     try {
         const jwk = JSON.parse(base64UrlDecode(jwkString));
@@ -111,7 +100,6 @@ export async function importKey(jwkString) {
 }
 
 
-// Helpers
 function bufferToBase64(buffer) {
     return btoa(String.fromCharCode(...new Uint8Array(buffer)));
 }

@@ -37,12 +37,6 @@ export function parseSecretUrl(hash) {
         throw new Error("Invalid link format");
     }
 
-    // Decode key just in case, though usually Jwk is url-safe base64 mostly.
-    // However, if the separator was encoded, the key might be too?
-    // It's safer to decodeURIComponent carefully, but key might contain % characters naturally?
-    // Base64Url charset is A-Za-z0-9-_, so no %. standard Base64 has +, /, =.
-    // If key contains %, it might be encoded.
-    // Let's try to decodeURIComponent if it looks encoded.
 
     try {
         key = decodeURIComponent(key);

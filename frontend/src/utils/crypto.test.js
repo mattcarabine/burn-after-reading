@@ -24,28 +24,21 @@ describe('Crypto Utils', () => {
         console.log('Ciphertext type:', ciphertext.constructor.name);
         console.log('Ciphertext value:', ciphertext);
 
-        // Ciphertext should be ArrayBuffer
         expect(ciphertext.constructor.name).toBe('ArrayBuffer');
-        // expect(ciphertext).toBeInstanceOf(ArrayBuffer); // Fails in some envs
-        expect(iv).toBeInstanceOf(Uint8Array); // or ArrayBuffer depending on implementation, let's check what we returned.
-        // encrypt returns iv as Uint8Array (from getRandomValues) if returnBinary is true in my impl
 
         const decrypted = await decrypt(ciphertext, iv, key, true);
 
         expect(decrypted.constructor.name).toBe('ArrayBuffer');
-        // expect(decrypted).toBeInstanceOf(ArrayBuffer);
         const decryptedArr = new Uint8Array(decrypted);
         expect(decryptedArr).toEqual(new Uint8Array(data));
     });
 
     it('should handle mixed types (Binary Encrypt -> Base64 Decrypt fail check or similar)', async () => {
-        // Just checking robustness
         const key = await generateKey();
         const text = "Test";
         const { ciphertext, iv } = await encrypt(text, key, true);
 
-        // Decrypt expecting text but passing binary inputs
-        const decrypted = await decrypt(ciphertext, iv, key); // returnBinary defaults false
+        const decrypted = await decrypt(ciphertext, iv, key);
         expect(decrypted).toBe(text);
     });
 });

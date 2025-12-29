@@ -4,7 +4,6 @@ import { generateKey, encrypt, decrypt, exportKey, importKey } from './utils/cry
 
 import { parseSecretUrl } from './utils/urlParser'
 
-// State
 const mode = ref('create') // 'create', 'created', 'read', 'revealed', 'error'
 const secretText = ref('')
 const uploadType = ref('message') // 'message', 'file'
@@ -13,7 +12,6 @@ const generatedUrl = ref('') // The full burn URL
 const isLoading = ref(false)
 const errorMsg = ref('')
 
-// Read Mode State
 const secretId = ref('')
 const secretKeyStr = ref('')
 const decryptedSecret = ref('')
@@ -27,7 +25,6 @@ onMounted(() => {
 function checkUrl() {
   const hash = window.location.hash
   
-  // Use our utility to safely parse
   try {
     const result = parseSecretUrl(hash)
     if (result) {
@@ -43,7 +40,6 @@ function checkUrl() {
   }
 }
 
-// Actions
 function handleFileSelect(event) {
     const file = event.target.files[0]
     if (!file) {
@@ -51,10 +47,9 @@ function handleFileSelect(event) {
         return
     }
     
-    // 10MB Limit
     if (file.size > 10 * 1024 * 1024) {
         errorMsg.value = "File size exceeds 10MB limit."
-        event.target.value = '' // Reset input
+        event.target.value = ''
         selectedFile.value = null
         return
     }
@@ -71,28 +66,17 @@ async function createLink() {
   errorMsg.value = ''
   
   try {
-    // 1. Generate Key
     const key = await generateKey()
     
-    // 2. Encrypt
     let payload = {}
     
     if (uploadType.value === 'file') {
-        // Read file to ArrayBuffer
         const buffer = await selectedFile.value.arrayBuffer()
-        const { ciphertext, iv } = await encrypt(buffer, key, true) // returnBinary=true
+        const { ciphertext, iv } = await encrypt(buffer, key, true)
         
-        // Prepare FormData
         const formData = new FormData()
-        formData.append('ciphertext', new Blob([ciphertext])) // Send as Blob
-        formData.append('ciphertext', new Blob([ciphertext])) // Send as Blob 
-        // Wait, backend expects 'iv' string for text? No, it just stores it.
-        // But for file mode, we sent 'iv' string before in text mode.
-        // Let's send IV as base64 string for consistency in KV? 
-        // The backend `formData.get('iv')` will return string if we append string.
-        // `encrypt` returns Uint8Array for iv. Let's convert to base64 string.
+        formData.append('ciphertext', new Blob([ciphertext]))
         
-        // Helper to convert Uint8Array back to Base64 for transport/metadata
         const ivB64 = btoa(String.fromCharCode(...iv))
         formData.append('iv', ivB64)
         
@@ -111,7 +95,7 @@ async function createLink() {
         }
     }
     
-    // 3. Send to Server
+    // Send to Server
     const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8787'
     
     const response = await fetch(`${backendUrl}/api/secrets`, {
@@ -128,7 +112,7 @@ async function createLink() {
     const data = await response.json()
     const id = data.id
     
-    // 4. Generate Link
+    // Generate Link
     const keyStr = await exportKey(key)
     const baseUrl = window.location.origin
     generatedUrl.value = `${baseUrl}/#/secret/${id}#${keyStr}`
@@ -149,7 +133,6 @@ async function revealSecret() {
   try {
     const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8787'
     
-    // 1. Fetch
     const response = await fetch(`${backendUrl}/api/secrets/${secretId.value}`)
     
     if (response.status === 404) {
@@ -161,30 +144,20 @@ async function revealSecret() {
     const key = await importKey(secretKeyStr.value)
 
     if (contentType && contentType.includes('application/json')) {
-        // Text Secret
         const data = await response.json()
         decryptedSecret.value = await decrypt(data.ciphertext, data.iv, key)
-        mode.value = 'revealed' // Show in UI
+        mode.value = 'revealed'
     } else {
-        // File Secret
-        // Read headers for metadata
         const ivB64 = response.headers.get('X-Burn-IV')
         const filename = response.headers.get('X-Burn-Filename') || 'downloaded-file'
         
         if (!ivB64) throw new Error('Missing encryption metadata in response')
         
-        // Read body as ArrayBuffer
         const encryptedBuffer = await response.arrayBuffer()
         
-        // Decrypt
-        // Note: decrypt expects iv as base64 string (default) or Buffer? 
-        // My updated decrypt handles both if I pass returnBinary=true?
-        // Wait, the `iv` arg in `decrypt` checks if string -> base64ToBuffer.
-        // `ivB64` is base64 string. So passing it is fine.
         
         const decryptedBuffer = await decrypt(encryptedBuffer, ivB64, key, true)
         
-        // Trigger Download
         const blob = new Blob([decryptedBuffer])
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
@@ -218,14 +191,12 @@ function reset() {
 
 function copyLink() {
     navigator.clipboard.writeText(generatedUrl.value)
-    // Maybe show toast
 }
 </script>
 
 <template>
   <div class="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-4 selection:bg-orange-500 selection:text-white">
     
-    <!-- Header -->
     <header class="mb-12 text-center">
         <h1 class="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-red-600 tracking-tight mb-2">
             Burn After Reading
@@ -233,16 +204,13 @@ function copyLink() {
         <p class="text-slate-400 text-lg">Encrypt. Share. Burn.</p>
     </header>
 
-    <!-- Main Card -->
     <div class="w-full max-w-2xl bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl shadow-2xl overflow-hidden p-8 sm:p-12 transition-all duration-500">
         
-        <!-- Loading State -->
         <div v-if="isLoading" class="flex flex-col items-center justify-center py-12">
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mb-4"></div>
             <p class="text-slate-400">Processing...</p>
         </div>
 
-        <!-- Error State -->
         <div v-else-if="mode === 'error'" class="text-center">
             <div class="text-red-400 text-6xl mb-4">⚠️</div>
             <h2 class="text-2xl font-bold mb-2">Error</h2>
@@ -252,9 +220,7 @@ function copyLink() {
             </button>
         </div>
 
-        <!-- CREATE MODE -->
         <div v-else-if="mode === 'create'">
-            <!-- Tabs -->
             <div class="flex space-x-4 mb-6 border-b border-slate-700 pb-2">
                 <button 
                     @click="uploadType = 'message'"
@@ -328,7 +294,6 @@ function copyLink() {
             </p>
         </div>
 
-        <!-- CREATED MODE -->
         <div v-else-if="mode === 'created'" class="text-center">
             <div class="text-5xl mb-4">🔒</div>
             <h2 class="text-2xl font-bold mb-6">Link Ready</h2>
@@ -357,7 +322,6 @@ function copyLink() {
             </div>
         </div>
 
-        <!-- READ MODE -->
         <div v-else-if="mode === 'read'" class="text-center">
              <div class="text-5xl mb-4">📬</div>
              <h2 class="text-2xl font-bold mb-4">You have a secret message</h2>
@@ -374,7 +338,6 @@ function copyLink() {
             </button>
         </div>
 
-        <!-- REVEALED MODE -->
         <div v-else-if="mode === 'revealed'">
             <div class="flex justify-between items-center mb-4">
                 <label class="block text-sm font-medium text-emerald-400 uppercase tracking-wider">

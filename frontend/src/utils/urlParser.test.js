@@ -21,9 +21,7 @@ describe('parseSecretUrl', () => {
     });
 
     it('parses a URL where key is also encoded', () => {
-        // simulated encoded key
         const hash = '#/secret/myId%23my%2Fkey%3D';
-        // my/key= encoded is my%2Fkey%3D
         const result = parseSecretUrl(hash);
         expect(result).toEqual({
             id: 'myId',
