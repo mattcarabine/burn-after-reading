@@ -3,7 +3,7 @@ export default {
         const corsHeaders = {
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
+            "Access-Control-Allow-Headers": "Content-Type, Content-Length",
         };
 
         if (request.method === "OPTIONS") {
@@ -15,8 +15,40 @@ export default {
 
         try {
             if (request.method === "POST" && path === "/api/secrets") {
-                const body = await request.json();
-                const { ciphertext, iv, expiry = 3600 } = body || {};
+                const contentType = request.headers.get("Content-Type") || "";
+
+                // Size Validation (Early Check)
+                const contentLength = request.headers.get("Content-Length");
+                const MAX_SIZE = 100 * 1024 * 1024; // 100 MB
+
+                if (contentLength && parseInt(contentLength) > MAX_SIZE) {
+                    return new Response(JSON.stringify({ error: "Payload too large. Max 100MB." }), {
+                        status: 413,
+                        headers: { "Content-Type": "application/json", ...corsHeaders },
+                    });
+                }
+
+                let ciphertext, iv, expiry, filename;
+                let isFile = false;
+
+                if (contentType.includes("application/json")) {
+                    const body = await request.json();
+                    ciphertext = body.ciphertext;
+                    iv = body.iv;
+                    expiry = body.expiry || 3600;
+                } else if (contentType.includes("multipart/form-data")) {
+                    const formData = await request.formData();
+                    ciphertext = formData.get("ciphertext"); // This will be a File/Blob if uploaded as file
+                    iv = formData.get("iv");
+                    expiry = formData.get("expiry") || 3600;
+                    filename = formData.get("filename");
+                    isFile = true;
+                } else {
+                    return new Response(JSON.stringify({ error: "Unsupported Content-Type" }), {
+                        status: 415,
+                        headers: { "Content-Type": "application/json", ...corsHeaders },
+                    });
+                }
 
                 if (!ciphertext || !iv) {
                     return new Response(JSON.stringify({ error: "Missing ciphertext or iv" }), {
@@ -26,14 +58,29 @@ export default {
                 }
 
                 const id = crypto.randomUUID();
-                // Store in KV with expiration (default 1 hour if not specified, max 7 days)
-                // Note: expiry is in seconds from now.
-                // KV put options: { expirationTtl: number } (min 60)
                 const ttl = Math.max(60, Math.min(expiry, 60 * 60 * 24 * 7)); // Clamp between 60s and 7 days
 
-                await env.SECRETS_KV.put(id, JSON.stringify({ ciphertext, iv }), {
-                    expirationTtl: ttl,
-                });
+                // Storage Logic
+                if (isFile && filename) {
+                    // It's a file upload
+                    // Store the encrypted file content in R2
+                    await env.BUCKET.put(id, ciphertext);
+
+                    // Store metadata in KV
+                    await env.SECRETS_KV.put(id, JSON.stringify({
+                        iv,
+                        filename,
+                        type: 'file',
+                        r2_key: id
+                    }), {
+                        expirationTtl: ttl,
+                    });
+                } else {
+                    // Standard text secret
+                    await env.SECRETS_KV.put(id, JSON.stringify({ ciphertext, iv, type: 'text' }), {
+                        expirationTtl: ttl,
+                    });
+                }
 
                 return new Response(JSON.stringify({ id }), {
                     headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -50,21 +97,52 @@ export default {
                     });
                 }
 
-                const secret = await env.SECRETS_KV.get(id);
+                const secretRaw = await env.SECRETS_KV.get(id);
 
-                if (!secret) {
+                if (!secretRaw) {
                     return new Response(JSON.stringify({ error: "Secret not found or already burned" }), {
                         status: 404,
                         headers: { "Content-Type": "application/json", ...corsHeaders },
                     });
                 }
 
-                // BURN AFTER READING: Delete immediately
+                // BURN STEP 1: Delete from KV immediately
                 await env.SECRETS_KV.delete(id);
 
-                return new Response(secret, {
-                    headers: { "Content-Type": "application/json", ...corsHeaders },
-                });
+                const secret = JSON.parse(secretRaw);
+
+                if (secret.type === 'file') {
+                    // Handle File
+                    const object = await env.BUCKET.get(id);
+
+                    if (!object) {
+                        return new Response(JSON.stringify({ error: "File data missing from storage" }), {
+                            status: 500,
+                            headers: { "Content-Type": "application/json", ...corsHeaders },
+                        });
+                    }
+
+                    // BURN STEP 2: Delete from R2 in background
+                    ctx.waitUntil(env.BUCKET.delete(id));
+
+                    // Return encrypted stream
+                    // We pass metadata in headers so frontend can decrypt
+                    const headers = new Headers(corsHeaders);
+                    headers.set("Content-Type", "application/octet-stream"); // Or application/encrypted
+                    headers.set("X-Burn-IV", secret.iv);
+                    headers.set("X-Burn-Filename", secret.filename);
+                    headers.set("Access-Control-Expose-Headers", "X-Burn-IV, X-Burn-Filename"); // Allow frontend to read these
+
+                    return new Response(object.body, {
+                        headers,
+                    });
+
+                } else {
+                    // Handle Text (Backward compatibility and Text mode)
+                    return new Response(JSON.stringify(secret), {
+                        headers: { "Content-Type": "application/json", ...corsHeaders },
+                    });
+                }
             }
 
             return new Response("Not Found", { status: 404, headers: corsHeaders });

@@ -12,10 +12,16 @@ export async function generateKey() {
     );
 }
 
-// Encrypt text
-export async function encrypt(text, key) {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(text);
+// Encrypt text or binary
+export async function encrypt(data, key, returnBinary = false) {
+    let encodedData;
+    if (typeof data === 'string') {
+        const encoder = new TextEncoder();
+        encodedData = encoder.encode(data);
+    } else {
+        encodedData = data;
+    }
+
     const iv = window.crypto.getRandomValues(new Uint8Array(12));
 
     const ciphertext = await window.crypto.subtle.encrypt(
@@ -24,8 +30,15 @@ export async function encrypt(text, key) {
             iv: iv,
         },
         key,
-        data
+        encodedData
     );
+
+    if (returnBinary) {
+        return {
+            ciphertext: ciphertext,
+            iv: iv
+        };
+    }
 
     return {
         ciphertext: bufferToBase64(ciphertext),
@@ -33,19 +46,34 @@ export async function encrypt(text, key) {
     };
 }
 
-// Decrypt text
-export async function decrypt(ciphertextB64, ivB64, key) {
-    const ciphertext = base64ToBuffer(ciphertextB64);
-    const iv = base64ToBuffer(ivB64);
+// Decrypt text or binary
+export async function decrypt(ciphertext, iv, key, returnBinary = false) {
+    let ciphertextBuf, ivBuf;
+
+    if (typeof ciphertext === 'string') {
+        ciphertextBuf = base64ToBuffer(ciphertext);
+    } else {
+        ciphertextBuf = ciphertext;
+    }
+
+    if (typeof iv === 'string') {
+        ivBuf = base64ToBuffer(iv);
+    } else {
+        ivBuf = iv;
+    }
 
     const decrypted = await window.crypto.subtle.decrypt(
         {
             name: "AES-GCM",
-            iv: iv,
+            iv: ivBuf,
         },
         key,
-        ciphertext
+        ciphertextBuf
     );
+
+    if (returnBinary) {
+        return decrypted;
+    }
 
     const decoder = new TextDecoder();
     return decoder.decode(decrypted);
@@ -89,12 +117,17 @@ function bufferToBase64(buffer) {
 }
 
 function base64ToBuffer(base64) {
-    const binaryString = atob(base64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
+    try {
+        const binaryString = atob(base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        return bytes.buffer;
+    } catch (e) {
+        console.error("base64ToBuffer failed for input:", base64);
+        throw e;
     }
-    return bytes.buffer;
 }
 
 function base64UrlEncode(str) {

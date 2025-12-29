@@ -9,3 +9,9 @@ binding = "SECRETS_KV"
 id = "97a12cb829af4e70b1ec28af9d382ab9" 
 preview_id = "YOUR_KV_NAMESPACE_PREVIEW_ID" # Optional, for `wrangler dev`
 
+# R2 Bucket binding
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "burn-after-reading-files"
+
+
